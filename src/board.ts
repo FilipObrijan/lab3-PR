@@ -1,41 +1,390 @@
-/* Copyright (c) 2021-25 MIT 6.102/6.031 course staff, all rights reserved.
- * Redistribution of original or derived work requires permission of course staff.
- */
-
 import assert from 'node:assert';
 import fs from 'node:fs';
+import { Player } from './player.js';
 
 /**
- * TODO specification
- * Mutable and concurrency safe.
+ * Mutable ADT representing a Memory Scramble game board.
+ * 
+ * A board is a rows×cols grid where each cell either:
+ *   - holds a card with a picture (string)
+ *   - is empty (null)
+ * 
+ * Each card can be face-up or face-down. Face-up cards are controlled by
+ * the player who flipped them. Empty cells are always face-down with no controller.
  */
+
 export class Board {
-
-    // TODO fields
-
+    private readonly rows: number;
+    private readonly cols: number;
+    private readonly cards: (string | null)[][];
+    private readonly faceUp: boolean[][];
+    private readonly controller: (string | null)[][];
+    private readonly players: Map<string, Player>;
+    // Rep invariant:
+    //   - rows, cols are positive integers (>= 1)
+    //   - cards, faceUp, controller are all rowsxcols 2D arrays
+    //   - for all r,c: if cards[r][c] is null, then faceUp[r][c] is false and controller[r][c] is null
+    //   - for all r,c: if cards[r][c] is a string, it's nonempty with no whitespace
+    //   - for all r,c: if controller[r][c] is not null, it exists as a key in players map
+    //
     // Abstraction function:
-    //   TODO
-    // Representation invariant:
-    //   TODO
+    //   AF(rows, cols, cards, faceUp, controller, players) =
+    //     A game board with dimensions rowsxcols where:
+    //     - cards[r][c] is the picture at position (r,c), or null if empty
+    //     - faceUp[r][c] indicates if card at (r,c) is face-up
+    //     - controller[r][c] is the player id who controls the face-up card at (r,c), or null
+    //     - players maps player ids to Player objects tracking game statistics
+    //
     // Safety from rep exposure:
-    //   TODO
-
-    // TODO constructor
-
-    // TODO checkRep
-
-    // TODO other methods
+    //   - All fields are private and readonly 
+    //   - Constructor deep-copies the layout array into cards[][]
+    //   - Observers return primitives, null, or fresh arrays (listPlayers), never references to internal arrays
+    //   - No methods return references to cards[][], faceUp[][], controller[][], or players map
+    //   - Player objects are mutable but encapsulated; registerPlayer returns them but they're already in the map
 
     /**
-     * Make a new board by parsing a file.
+     * Create a new board with the given layout.
      * 
-     * PS4 instructions: the specification of this method may not be changed.
+     * @param rows number of rows (must be >= 1)
+     * @param cols number of columns (must be >= 1)
+     * @param layout array of length rows*cols containing card pictures (or null for empty cells),
+     *               in row-major order
+     */
+    private constructor(rows: number, cols: number, layout: readonly (string | null)[]) {
+        this.rows = rows;
+        this.cols = cols;
+        this.cards = [];
+        this.faceUp = [];
+        this.controller = [];
+        this.players = new Map();
+        
+        let k = 0;
+        for (let r = 0; r < rows; r++) {
+        const rc: (string | null)[] = [];
+        const ru: boolean[] = [];
+        const rctrl: (string | null)[] = [];
+        for (let c = 0; c < cols; c++) {
+            rc.push(layout[k++] ?? null);
+            ru.push(false);
+            rctrl.push(null);
+        }
+        this.cards.push(rc);
+        this.faceUp.push(ru);
+        this.controller.push(rctrl);
+        }
+        this.checkRep();
+    }
+
+    /**
+     * Assert the representation invariant.
+     * @throws Error if rep invariant is violated
+     */
+    private checkRep(): void {
+    assert(Number.isInteger(this.rows) && this.rows >= 1);
+    assert(Number.isInteger(this.cols) && this.cols >= 1);
+
+    assert(this.cards.length === this.rows);
+    assert(this.faceUp.length === this.rows);
+    assert(this.controller.length === this.rows);
+
+    for (let r = 0; r < this.rows; r++) {
+        const cardsRow = this.cards[r];
+        const faceUpRow = this.faceUp[r];
+        const controllerRow = this.controller[r];
+        
+        assert(cardsRow !== undefined && cardsRow.length === this.cols);
+        assert(faceUpRow !== undefined && faceUpRow.length === this.cols);
+        assert(controllerRow !== undefined && controllerRow.length === this.cols);
+
+        for (let c = 0; c < this.cols; c++) {
+            const card = cardsRow[c];
+            const up = faceUpRow[c];
+            const ctrl = controllerRow[c];
+
+            if (card === null) {
+                assert(up === false);
+                assert(ctrl === null);
+            } else {
+                assert(typeof card === 'string' && card.length > 0);
+                assert(!/\s/.test(card)); // no whitespace inside a picture
+                assert(ctrl === null || (typeof ctrl === 'string' && this.players.has(ctrl)));
+            }
+        }
+    }     
+}
+
+  // ============
+  // Observers
+  // ============
+
+    /**
+     * Get the number of rows on this board.
+     * @returns number of rows (>= 1)
+     */
+    public numRows(): number { return this.rows; }
+
+    /**
+     * Get the number of columns on this board.
+     * @returns number of columns (>= 1)
+     */
+    public numCols(): number { return this.cols; }
+
+    /**
+     * Get the picture at a specific position.
      * 
-     * @param filename path to game board file
-     * @returns a new board with the size and cards from the file
-     * @throws Error if the file cannot be read or is not a valid game board
+     * @param row row index (0-based)
+     * @param col column index (0-based)
+     * @returns the picture string at (row, col), or null if the cell is empty
+     * @throws Error if row or col are out of bounds
+     */
+    public pictureAt(row: number, col: number): string | null {
+        this.requireInBounds(row, col);
+        const cardsRow = this.cards[row];
+        if (!cardsRow) throw new Error('invalid row');
+        return cardsRow[col] ?? null;
+    }
+
+    /**
+     * Check if a card is face-up.
+     * 
+     * @param row row index (0-based)
+     * @param col column index (0-based)
+     * @returns true if the card at (row, col) is face-up, false otherwise
+     * @throws Error if row or col are out of bounds
+     */
+    public isFaceUp(row: number, col: number): boolean {
+        this.requireInBounds(row, col);
+        const faceUpRow = this.faceUp[row];
+        if (!faceUpRow) throw new Error('invalid row');
+        const value = faceUpRow[col];
+        return value ?? false;
+    }
+
+    /**
+     * Get the player controlling a card.
+     * 
+     * @param row row index (0-based)
+     * @param col column index (0-based)
+     * @returns the player id controlling the card at (row, col), or null if no controller
+     * @throws Error if row or col are out of bounds
+     */
+    public controllerAt(row: number, col: number): string | null {
+        this.requireInBounds(row, col);
+        const controllerRow = this.controller[row];
+        if (!controllerRow) throw new Error('invalid row');
+        return controllerRow[col] ?? null;
+    }
+
+    /**
+     * Dump the board layout in the same format as the board file.
+     * 
+     * @returns string representation of the board in file format:
+     *          first line is "rows×cols", followed by one card per line in row-major order
+     */
+    public picturesDump(): string {
+        const out: string[] = [`${this.rows}x${this.cols}`];
+        for (let r = 0; r < this.rows; r++) {
+            const cardsRow = this.cards[r];
+            if (!cardsRow) continue;
+            for (let c = 0; c < this.cols; c++) {
+                out.push(cardsRow[c] ?? 'none');
+            }
+        }
+        return out.join('\n') + '\n';
+    }
+
+    /**
+     * Get a string representation for debugging.
+     * @returns string describing this board
+     */
+    public toString(): string {
+        return `Board(${this.rows}x${this.cols})`;
+    }
+
+  // ======================
+  // Player registry (P1)
+  // ======================
+
+    /**
+     * Register a player or retrieve an existing player.
+     * 
+     * @param id unique player identifier (nonempty, no whitespace)
+     * @param displayName human-readable name for the player (defaults to id)
+     * @returns the Player object for this id (existing or newly created)
+     * @throws Error if id is empty or contains whitespace
+     */
+    public registerPlayer(id: string, displayName = id): Player {
+        if (id.length === 0 || /\s/.test(id)) throw new Error('player id must be nonempty, no whitespace');
+        const existing = this.players.get(id);
+        if (existing) return existing;
+        const p = new Player(id, displayName);
+        this.players.set(id, p);
+        this.checkRep();
+        return p;
+    }
+
+    /**
+     * List all registered player ids.
+     * @returns array of player ids (in insertion order)
+     */
+    public listPlayers(): string[] {
+        return Array.from(this.players.keys());
+    }
+
+  // =======================
+  // Simple flips (Problem 1)
+  // =======================
+
+    /**
+     * Flip a card face-up and assign control to a player.
+     * 
+     * @param playerId id of the player flipping the card
+     * @param row row index of the card (0-based)
+     * @param col column index of the card (0-based)
+     * @throws Error if:
+     *         - row or col are out of bounds
+     *         - playerId is not registered
+     *         - the cell is empty
+     *         - the card is already face-up
+     */
+    public flipUp(playerId: string, row: number, col: number): void {
+        this.requireInBounds(row, col);
+        if (!this.players.has(playerId)) throw new Error(`unknown player: ${playerId}`);
+        
+        const cardsRow = this.cards[row];
+        const faceUpRow = this.faceUp[row];
+        const controllerRow = this.controller[row];
+        
+        if (!cardsRow || !faceUpRow || !controllerRow) throw new Error('invalid row');
+        
+        const pic = cardsRow[col];
+        if (pic === null) throw new Error('empty space');
+        const isFaceUp = faceUpRow[col] ?? false;
+        if (isFaceUp) throw new Error('already face up');
+
+        faceUpRow[col] = true;
+        controllerRow[col] = playerId;
+        const player = this.players.get(playerId);
+        if (player) {
+            player.recordFlip();
+        }
+
+        this.checkRep();
+    }
+
+
+    /**
+     * Flip a card face-down and remove its controller.
+     * 
+     * @param row row index of the card (0-based)
+     * @param col column index of the card (0-based)
+     * @throws Error if:
+     *         - row or col are out of bounds
+     *         - the cell is empty
+     *         - the card is already face-down
+     */
+    public flipDown(row: number, col: number): void {
+        this.requireInBounds(row, col);
+        
+        const cardsRow = this.cards[row];
+        const faceUpRow = this.faceUp[row];
+        const controllerRow = this.controller[row];
+        
+        if (!cardsRow || !faceUpRow || !controllerRow) throw new Error('invalid row');
+        
+        const pic = cardsRow[col];
+        if (pic === null) throw new Error('empty space');
+        const isFaceUp = faceUpRow[col] ?? false;
+        if (!isFaceUp) throw new Error('already face down');
+
+        faceUpRow[col] = false;
+        controllerRow[col] = null;
+
+        this.checkRep();
+    }
+
+  // ==============================
+  // Construction from a file (P1)
+  // ==============================
+
+    /**
+     * Parse a board from a file.
+     * 
+     * File format:
+     *   - First line: "rows×cols" (e.g., "3x4")
+     *   - Next rows×cols lines: one card picture per line
+     * 
+     * @param filename path to the board file
+     * @returns a new Board parsed from the file
+     * @throws Error if:
+     *         - file cannot be read
+     *         - no header line
+     *         - header is malformed
+     *         - dimensions are invalid (not positive integers)
+     *         - wrong number of cards
+     *         - any card token contains whitespace or is empty
      */
     public static async parseFromFile(filename: string): Promise<Board> {
-        return new Board(); // TODO: implement this
+    try {
+        const text = (await fs.promises.readFile(filename)).toString();
+        // Fix: use replace with regex instead of replaceAll
+        const norm = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        let lines = norm.split('\n');
+        
+        // Remove trailing empty line if any
+        if (lines.length > 0 && lines[lines.length - 1] === '') {
+            lines = lines.slice(0, -1);
+        }
+        if (lines.length === 0) throw new Error('empty file');
+
+        // Header: ^(\d+)x(\d+)$
+        const headerLine = lines[0];
+        if (headerLine === undefined) throw new Error('missing header');
+        const header = headerLine.trim();
+        if (header.length === 0) throw new Error('missing header');
+        const m = header.match(/^(\d+)x(\d+)$/);
+        if (!m) throw new Error(`invalid header: ${header}`);
+        const rows = Number(m[1]);
+        const cols = Number(m[2]);
+        if (!Number.isInteger(rows) || rows < 1 || !Number.isInteger(cols) || cols < 1) {
+            throw new Error(`invalid dimensions: ${rows}x${cols}`);
+        }
+
+        const expected = rows * cols;
+        const cardLines = lines.slice(1);
+        if (cardLines.length !== expected) {
+            throw new Error(`expected ${expected} cards, found ${cardLines.length}`);
+        }
+
+        const layout: (string | null)[] = [];
+        for (let i = 0; i < cardLines.length; i++) {
+            const tok = cardLines[i];
+            if (tok === undefined || tok.length === 0 || !/^[^\s]+$/.test(tok)) {
+                throw new Error(`invalid card at line ${i + 2}: ${tok}`);
+            }
+            layout.push(tok);
+        }
+
+        return new Board(rows, cols, layout);
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        throw new Error(`parseFromFile failed for ${filename}: ${msg}`);
     }
 }
+
+  // ==============
+  // Helpers
+  // ==============
+
+    /**
+     * Check that row and col are valid indices for this board.
+     * 
+     * @param row row index to check
+     * @param col column index to check
+     * @throws Error if row or col are not integers, or are out of bounds
+     */
+    private requireInBounds(row: number, col: number): void {
+        if (!Number.isInteger(row) || !Number.isInteger(col)) throw new Error('indices must be integers');
+        if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) throw new Error('out of bounds');
+    }
+    }

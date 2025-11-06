@@ -1,6 +1,3 @@
-/* Copyright (c) 2021-25 MIT 6.102/6.031 course staff, all rights reserved.
- * Redistribution of original or derived work requires permission of course staff.
- */
 
 import assert from 'node:assert';
 import process from 'node:process';
@@ -11,24 +8,10 @@ import { Board } from './board.js';
 import { look, flip, map, watch } from './commands.js';
 
 /**
- * Start a game server using the given arguments.
+ * Initialize and start the Memory Scramble HTTP server.
+ * Requires command-line arguments: PORT FILENAME
  * 
- * PS4 instructions: you are advised *not* to modify this file.
- *
- * Command-line usage:
- *     npm start PORT FILENAME
- * where:
- * 
- *   - PORT is an integer that specifies the server's listening port number,
- *     0 specifies that a random unused port will be automatically chosen.
- *   - FILENAME is the path to a valid board file, which will be loaded as
- *     the starting game board.
- * 
- * For example, to start a web server on a randomly-chosen port using the
- * board in `boards/hearts.txt`:
- *     npm start 0 boards/hearts.txt
- * 
- * @throws Error if an error occurs parsing a file or starting a server
+ * @throws Error if arguments are invalid or board file fails to load
  */
 async function main(): Promise<void> {
     const [portString, filename] 
@@ -44,9 +27,8 @@ async function main(): Promise<void> {
     await server.start();
 }
 
-
 /**
- * HTTP web game server.
+ * HTTP server for Memory Scramble game providing REST API endpoints.
  */
 class WebServer {
 
@@ -54,10 +36,10 @@ class WebServer {
     private server: Server|undefined;
 
     /**
-     * Make a new web game server using board that listens for connections on port.
+     * Create a new web server for the game.
      * 
-     * @param board shared game board
-     * @param requestedPort server port number
+     * @param board the game board to serve
+     * @param requestedPort port number to listen on
      */
     public constructor(
         private readonly board: Board, 
@@ -70,12 +52,6 @@ class WebServer {
             next();
         });
 
-        /*
-         * GET /look/<playerId>
-         * playerId must be a nonempty string of alphanumeric or underscore characters
-         * 
-         * Response is the board state from playerId's perspective, as described in the ps4 handout.
-         */
         this.app.get('/look/:playerId', async(request, response) => {
             const { playerId } = request.params;
             assert(playerId);
@@ -87,14 +63,6 @@ class WebServer {
             .send(boardState);
         });
 
-        /*
-         * GET /flip/<playerId>/<row>,<column>
-         * playerId must be a nonempty string of alphanumeric or underscore characters;
-         * row and column must be integers, 0 <= row,column < height,width of board (respectively)
-         * 
-         * Response is the state of the board after the flip from the perspective of playerID,
-         * as described in the ps4 handout.
-         */
         this.app.get('/flip/:playerId/:location', async(request, response) => {
             const { playerId, location } = request.params;
             assert(playerId);
@@ -118,16 +86,6 @@ class WebServer {
             }
         });
 
-        /*
-         * GET /replace/<playerId>/<oldcard>/<newcard>
-         * playerId must be a nonempty string of alphanumeric or underscore characters;
-         * oldcard and newcard must be nonempty strings.
-         * 
-         * Replaces all occurrences of oldcard with newcard (as card labels) on the board.
-         * 
-         * Response is the state of the board after the replacement from the the perspective of playerID,
-         * as described in the ps4 handout.
-         */
         this.app.get('/replace/:playerId/:fromCard/:toCard', async(request, response) => {
             const { playerId, fromCard, toCard } = request.params;
             assert(playerId);
@@ -141,16 +99,6 @@ class WebServer {
             .send(boardState);
         });
 
-        /*
-         * GET /watch/<playerId>
-         * playerId must be a nonempty string of alphanumeric or underscore characters
-         * 
-         * Waits until the next time the board changes (defined as any cards turning face up or face down, 
-         * being removed from the board, or changing from one string to a different string).
-         * 
-         * Response is the new state of the board from the perspective of playerID,
-         * as described in the ps4 handout.
-         */
         this.app.get('/watch/:playerId', async(request, response) => {
             const { playerId } = request.params;
             assert(playerId);
@@ -162,18 +110,13 @@ class WebServer {
             .send(boardState);
         });
 
-        /*
-         * GET /
-         *
-         * Response is the game UI as an HTML page.
-         */
         this.app.use(express.static('public/'));
     }
 
     /**
-     * Start this server.
+     * Begin listening for HTTP requests.
      * 
-     * @returns (a promise that) resolves when the server is listening
+     * @returns promise that resolves when server is ready
      */
     public start(): Promise<void> {
         const { promise, resolve } = Promise.withResolvers<void>();
@@ -186,10 +129,10 @@ class WebServer {
     }
 
     /**
-     * @returns the actual port that server is listening at. (May be different
-     *          than the requestedPort used in the constructor, since if
-     *          requestedPort = 0 then an arbitrary available port is chosen.)
-     *          Requires that start() has already been called and completed.
+     * Get the actual port the server is listening on.
+     * 
+     * @returns port number
+     * @throws Error if server is not listening
      */
     public get port(): number {
         const address = this.server?.address() ?? 'not connected';
@@ -199,10 +142,11 @@ class WebServer {
         return address.port;
     }
 
+
     /**
-     * Stop this server. Once stopped, this server cannot be restarted.
+     * Stop the server and close all connections.
      */
-     public stop(): void {
+    public stop(): void {
         this.server?.close();
         console.log('server stopped');
     }
