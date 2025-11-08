@@ -343,7 +343,7 @@ export class Board {
         if (id.length === 0 || /\s/.test(id)) throw new Error('player id must be nonempty, no whitespace');
         const existing = this.players.get(id);
         if (existing) return existing;
-        const p = new Player(id, displayName);
+        const p = new Player(id);
         this.players.set(id, p);
         this.checkRep();
         return p;
@@ -525,7 +525,6 @@ export class Board {
         const secondPic = pic;
         if (firstPic === secondPic && firstPic !== null) {
             // 2-D: Match! Keep control of both cards
-            player.recordMatch();
             console.log(`[BOARD] ${playerId} MATCHES (${firstCard.row},${firstCard.col}) <-> (${row},${col}) via 2-D (keeps control until next first)`);
             // Cards stay controlled and face up until next first card flip (3-A)
         } else {

@@ -42,7 +42,6 @@ export async function flip(board: Board, playerId: string, row: number, column: 
  * @param playerId identifier of the player performing the transformation
  * @param f asynchronous transformation function from old picture to new picture
  * @returns board state after applying the transformation
- * @throws Error when not yet implemented
  */
 export async function map(board: Board, playerId: string, f: (card: string) => Promise<string>): Promise<string> {
     board.registerPlayer(playerId);
