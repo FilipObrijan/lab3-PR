@@ -11,8 +11,6 @@ const MAX_WATCH_TIMEOUT_MS = 2000;
 
 /**
  * Execute a simulation of Memory Scramble with automated players.
- * This demonstrates the game mechanics with players making random moves.
- * Includes a watcher that monitors board changes in real-time.
  * 
  * @throws Error if the board file cannot be loaded or parsed
  */

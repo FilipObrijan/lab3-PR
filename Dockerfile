@@ -13,5 +13,5 @@ RUN npm run compile
 # Expose the port 
 EXPOSE 8080
 
-# Start the server
+# Start the serverhfctrd
 CMD ["node", "--require", "source-map-support/register", "dist/src/server.js", "8080", "boards/perfect.txt"]

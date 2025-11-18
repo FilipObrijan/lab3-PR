@@ -6,6 +6,7 @@ import { Board } from '../src/board.js';
 import express from 'express';
 import { Server } from 'node:http';
 import { map } from '../src/commands.js';
+// test 
 
 function tmpfile(contents: string): string {
         const f = path.join(os.tmpdir(), `board-${Math.random().toString(36).slice(2)}.txt`);

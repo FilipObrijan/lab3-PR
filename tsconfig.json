@@ -7,7 +7,9 @@
   "compilerOptions": {
     "strict": true,
     "noImplicitReturns": true,
+
     "noFallthroughCasesInSwitch": true,
+    
     "forceConsistentCasingInFileNames": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,

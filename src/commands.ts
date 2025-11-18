@@ -16,9 +16,7 @@ export async function look(board: Board, playerId: string): Promise<string> {
 }
 
 /**
- * Attempt to flip a card face-up for the specified player.
- * May block if another player has control of this card.
- * Card stays face-up under player control until flipped down.
+
  * 
  * @param board the game board
  * @param playerId identifier of the player attempting the flip

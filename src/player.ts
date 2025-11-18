@@ -11,11 +11,6 @@ export class Player {
     private firstCard: { row: number; col: number } | null;
     private secondCard: { row: number; col: number } | null;
     
-      // Rep invariant:
-    //   - id is a nonempty string with no whitespace
-    //   - flips >= 0, is an integer
-    //   - firstCard is null or an object with integer row and col
-    //   - secondCard is null or an object with integer row and col
     //
     // Abstraction function:
     //   AF(id, flips, firstCard, secondCard) =

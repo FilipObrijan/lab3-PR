@@ -114,7 +114,6 @@ class WebServer {
     }
 
     /**
-     * Begin listening for HTTP requests.
      * 
      * @returns promise that resolves when server is ready
      */
