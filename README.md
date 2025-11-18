@@ -109,7 +109,6 @@ No one had control over the rainbow card and it was face up, so I clicked on it 
 
 ![](images_report/image-9.png)
 
-![](images_report/image-10.png)
 
 ### 1-D: And if the card is face up and controlled by another player, the operation waits. The player will contend with other players to take control of the card at the next opportunity.
 If I click on a card controlled by someone else, it will turn green and I will wait till it is free.
@@ -123,52 +122,14 @@ I tried to take control of empty space as second card and I relinquished control
 
 ![](images_report/image-13.png)
 
-![](images_report/image-14.png)
-
 ### 2-B: If the card is face up and controlled by a player (another player or themselves), the operation fails. To avoid deadlocks, the operation does not wait. The player also relinquishes control of their first card (but it remains face up for now).
  When I try to choose as second card a already controlled card, I lose control of first card and I get an error.
 
 ![](images_report/image-15.png)
 
-![](images_report/image-16.png)
-
-If the card is face down, or if the card is face up but not controlled by a player, then:
-
-### 2-C: If it is face down, it turns face up.
-
-![](images_report/image-17.png)
-
-### 2-D: If the two cards are the same, that’s a successful match! The player keeps control of both cards (and they remain face up on the board for now).
-
-![](images_report/image-17.png)
-
-
-### 2-E: If they are not the same, the player relinquishes control of both cards (again, they remain face up for now).
-
-I tried to flip a rainbow and then I flipped an unicorn. They are not a match, so I lost control over them.
-
-![](images_report/image-19.png)
-
-![](images_report/image-20.png)
-
-After trying to turn over a second card, successfully or not, the player will try again to turn over a first card. When they do that, before following the rules above, they finish their previous play:
-
-### 3-A: If they had turned over a matching pair, they control both cards. Now, those cards are removed from the board, and they relinquish control of them. Score-keeping is not specified as part of the game.
-
-The removed cards are from matching pairs:
-
-![](images_report/image-18.png)
-
-### 3-B: Otherwise, they had turned over one or two non-matching cards, and relinquished control but left them face up on the board. Now, for each of those card(s), if the card is still on the board, currently face up, and currently not controlled by another player, the card is turned face down.
-
- After losing relinquishing control of pair, they are turned down when I make next move.
-
-![](images_report/image-21.png)
-
-![](images_report/image-22.png)
 
 
 ### Map
-I mapped the unicorns to lolipops succesfully:
+I mapped the car to emoji succesfully:
 
 ![](images_report/image-23.png)

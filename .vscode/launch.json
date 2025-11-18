@@ -2,12 +2,14 @@
     "version": "0.2.0",
     "configurations": [
         {
+
             "command": "npm start",
             "name": "Run npm start (runs server.ts)",
             "request": "launch",
             "type": "node-terminal"
         },
         {
+            
             "command": "npm run simulation",
             "name": "Run npm run simulation (runs simulation.ts)",
             "request": "launch",

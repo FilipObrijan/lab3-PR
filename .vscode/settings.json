@@ -1,6 +1,7 @@
 {
     "files.exclude": {
         ".vscode/": true,
+
         "node_modules/": true,
         "dist/": true,
         "**/.DS_Store": true,
@@ -9,6 +10,7 @@
         ".npmrc": true,
         "eslint.config.mjs": true
     },
+    
     "editor.formatOnPaste": false,
     "editor.formatOnSave": false,
     "editor.formatOnType": false,
